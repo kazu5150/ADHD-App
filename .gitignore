@@ -1,0 +1,38 @@
+# 環境変数
+.env
+.env.local
+
+# Node modules
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Expo
+client/.expo/
+client/dist/
+client/web-build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build
+build/
+dist/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
