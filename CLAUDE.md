@@ -145,6 +145,137 @@ ADHD-App/
 ## 参照ドキュメント
 
 - 詳細な要件: `requirements.md`
+- 開発計画書: `DEVELOPMENT_PLAN.md`
+- プロジェクト概要: `README.md`
 - Apple Developer: App Store Connect / TestFlight
 - Expo: https://docs.expo.dev/
 - OpenAI API: https://platform.openai.com/docs/
+
+---
+
+## 開発進捗状況（2026年1月6日時点）
+
+### ✅ Phase 1: 環境構築 - 完了
+
+**完了日**: 2026年1月6日
+
+#### 実施内容
+
+1. **プロジェクト作成**
+   - React Native + Expo（TypeScript）プロジェクト作成
+   - Node.js + Express バックエンド構築
+   - 必要なパッケージインストール完了
+     - クライアント: expo-av, expo-notifications, @react-native-async-storage/async-storage
+     - サーバー: express, cors, multer, openai, dotenv, nodemon
+
+2. **基本ファイル構造作成**
+   ```
+   ADHD-App/
+   ├── client/
+   │   ├── screens/
+   │   ├── components/
+   │   ├── services/
+   │   ├── types/
+   │   │   ├── memo.ts          # メモ型定義
+   │   │   └── api.ts           # API型定義
+   │   └── constants/
+   │       ├── colors.ts        # カラーテーマ
+   │       └── config.ts        # アプリ設定
+   ├── server/
+   │   ├── index.js             # Express サーバー（ヘルスチェック実装済み）
+   │   ├── routes/
+   │   ├── services/
+   │   ├── middleware/
+   │   ├── .env                 # 環境変数（Git管理外）
+   │   └── .env.example         # 環境変数テンプレート
+   ├── .gitignore
+   ├── CLAUDE.md
+   ├── DEVELOPMENT_PLAN.md
+   ├── requirements.md
+   └── README.md
+   ```
+
+3. **動作確認完了**
+   - ✅ クライアント起動確認（iPhone実機でExpo Goアプリ使用）
+   - ✅ バックエンド起動確認（http://localhost:3000/health でヘルスチェック成功）
+   - ✅ デフォルトアプリ画面が表示される
+
+4. **Gitリポジトリ管理**
+   - リポジトリ初期化完了
+   - .gitignore設定（node_modules, .env等）
+   - コミット履歴:
+     ```
+     33dfa53 Add: README.md追加（Phase 1動作確認完了）
+     7383106 Update: Phase 1本文のチェックボックスも完了
+     b0e338c Update: Phase 1チェックリスト完了
+     e03103e Initial commit: Phase 1 環境構築完了
+     ```
+
+#### 完了基準の達成状況
+
+- ✅ `npx expo start`でアプリが起動する
+- ✅ `npm start`でバックエンドが起動する
+- ⏳ クライアントからバックエンドへのAPI通信（Phase 3以降で実装予定）
+
+### ⏳ Phase 2: 音声録音機能の実装 - 未着手
+
+**次回作業内容**:
+1. expo-avを使用した音声録音機能実装
+2. 録音権限取得
+3. 録音開始/停止機能
+4. 録音ファイルの保存
+5. エラーハンドリング
+
+**参照**: `DEVELOPMENT_PLAN.md` の Phase 2セクション（70-110行目）
+
+### 次回開始時の注意事項
+
+1. **環境変数の確認**
+   - `server/.env` に OpenAI APIキーが設定されているか確認
+   - 未設定の場合は `.env.example` を参考に設定
+
+2. **開発サーバーの起動**
+   ```bash
+   # ターミナル1: クライアント
+   cd client && npx expo start
+
+   # ターミナル2: バックエンド
+   cd server && npm run dev
+   ```
+
+3. **Phase 2の実装前に確認**
+   - `requirements.md` のPhase 2関連要件を再確認
+   - `DEVELOPMENT_PLAN.md` のPhase 2実装タスクを確認
+   - expo-avの権限設定（`app.json`のinfoPlist設定）
+
+4. **重要な設計原則**
+   - MVP範囲内で最小限の実装に留める
+   - 3秒以内の起動時間を維持
+   - シンプルなUIを心がける
+
+### トラブルシューティング
+
+#### Cursorエディタでファイルが更新されない場合
+```bash
+# Gitの最新コミットに復元
+git restore <filename>
+```
+
+#### サーバーが起動しない場合
+```bash
+# ポート使用状況確認
+lsof -i :3000
+# プロセス停止
+kill -9 <PID>
+```
+
+---
+
+## 開発履歴
+
+### 2026年1月6日
+- Phase 1完了: 環境構築、動作確認
+- README.md作成
+- Gitリポジトリ初期化・コミット
+- iPhone実機でアプリ起動確認
+- バックエンドヘルスチェック確認
