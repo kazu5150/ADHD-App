@@ -798,7 +798,7 @@ eas build --platform ios --profile production
 - [x] Node.js, npm, Expoのインストール確認
 - [x] React Nativeプロジェクト作成
 - [x] Node.jsバックエンドプロジェクト作成
-- [ ] Gitリポジトリ初期化
+- [x] Gitリポジトリ初期化
 - [x] .gitignore設定（node_modules, .env）
 - [x] 基本フォルダ構造作成
 
