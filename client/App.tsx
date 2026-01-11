@@ -7,6 +7,7 @@ import ProcessingScreen from './screens/ProcessingScreen';
 import CompleteScreen from './screens/CompleteScreen';
 import * as notificationService from './services/notificationService';
 import * as audioRecorder from './services/audioRecorder';
+import * as apiClient from './services/apiClient';
 
 type Screen = 'home' | 'recording' | 'processing' | 'complete';
 
@@ -48,20 +49,36 @@ export default function App() {
       setRecordingUri(uri);
       setCurrentScreen('processing');
 
-      // デモ用：2秒後に完了画面へ遷移（実際はAPI呼び出し）
-      // TODO: 次のフェーズでAPI呼び出しに置き換える
-      console.log('⏳ デモモード: 2秒後に完了画面へ遷移');
-      setTimeout(() => {
+      // 実際のAPI呼び出し
+      console.log('🚀 バックエンドAPIにリクエスト送信中...');
+      const response = await apiClient.processVoice(uri);
+
+      if (response.success && response.data) {
+        console.log('✅ AI整理完了:', response.data);
         setProcessedData({
-          summary: '企画書の締切が今日の夕方',
-          category: '仕事',
-          suggestedTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), // 3時間後
+          summary: response.data.summary,
+          category: response.data.category,
+          suggestedTime: response.data.suggestedTime,
         });
         setCurrentScreen('complete');
-      }, 2000);
-    } catch (error) {
-      console.error('❌ 録音停止エラー:', error);
-      Alert.alert('エラー', '録音の保存に失敗しました');
+      } else {
+        throw new Error('AI整理に失敗しました');
+      }
+    } catch (error: any) {
+      console.error('❌ 処理エラー:', error);
+
+      // エラーメッセージを表示
+      const errorMessage = error.message || '録音の処理に失敗しました';
+      Alert.alert(
+        'エラー',
+        errorMessage,
+        [
+          {
+            text: 'もう一度',
+            onPress: () => setCurrentScreen('home'),
+          },
+        ]
+      );
       setCurrentScreen('home');
     }
   };
@@ -72,6 +89,22 @@ export default function App() {
 
     try {
       const reminderDate = new Date(processedData.suggestedTime);
+
+      // 過去の時刻チェック
+      if (reminderDate <= new Date()) {
+        console.warn('提案された時刻が過去のため、リマインダーをスキップします');
+        Alert.alert(
+          '通知設定',
+          '提案された時刻が既に過ぎているため、通知は設定されませんでした。',
+          [{ text: 'OK', onPress: () => {
+            setCurrentScreen('home');
+            setProcessedData(null);
+            setRecordingUri(null);
+          }}]
+        );
+        return;
+      }
+
       await notificationService.scheduleNotification(
         reminderDate,
         processedData.summary
@@ -82,9 +115,10 @@ export default function App() {
       setCurrentScreen('home');
       setProcessedData(null);
       setRecordingUri(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('リマインダー設定エラー:', error);
-      Alert.alert('エラー', '通知の設定に失敗しました');
+      const errorMessage = error.message || '通知の設定に失敗しました';
+      Alert.alert('エラー', errorMessage);
     }
   };
 

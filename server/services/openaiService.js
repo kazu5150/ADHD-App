@@ -41,6 +41,9 @@ async function organizeThought(transcript) {
   try {
     const currentTime = new Date();
 
+    // 1時間後の時刻を計算
+    const oneHourLater = new Date(currentTime.getTime() + 60 * 60 * 1000);
+
     // システムプロンプト
     const systemPrompt = `あなたはユーザーの思考を整理するアシスタントです。
 音声メモから以下の情報を抽出してください：
@@ -54,8 +57,12 @@ async function organizeThought(transcript) {
 
 3. suggestedTime: リマインド候補時刻（ISO 8601形式、日本時間 +09:00）
    - 現在時刻: ${currentTime.toISOString()}
-   - 現在の時間帯を考慮して、適切な時刻を提案してください
-   - 例: 朝のメモなら夕方、夜のメモなら翌朝など
+   - **重要: 必ず現在時刻より未来の時刻を提案してください**
+   - 最低でも1時間後（${oneHourLater.toISOString()}）以降の時刻を提案
+   - 例:
+     * 朝（6-11時）のメモ → 同日の夕方17-19時
+     * 昼（12-17時）のメモ → 同日の夜20-22時
+     * 夜（18時以降）のメモ → 翌朝9-10時
 
 ユーザー入力が意味不明・空の場合:
 - summary: "メモを受け取りました"
@@ -91,6 +98,16 @@ JSON形式で出力してください。`;
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(9, 0, 0, 0);
       result.suggestedTime = tomorrow.toISOString();
+    } else {
+      // 過去の時刻チェック
+      const suggestedDate = new Date(result.suggestedTime);
+      if (suggestedDate <= currentTime) {
+        console.warn('AIが過去の時刻を提案したため、翌朝9時に補正します');
+        const tomorrow = new Date(currentTime);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        result.suggestedTime = tomorrow.toISOString();
+      }
     }
 
     return {

@@ -3,9 +3,10 @@
  */
 
 // APIエンドポイント
-// 本番環境では実際のAPIのURLに置き換える
+// 開発環境: MacのローカルIPアドレスを使用（iPhoneからアクセス可能）
+// 本番環境: 実際のAPIのURLに置き換える
 export const API_URL = __DEV__
-  ? 'http://localhost:3000'
+  ? 'http://172.20.10.2:3000'
   : 'https://your-production-api.com';
 
 // ローカルストレージキー
