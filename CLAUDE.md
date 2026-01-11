@@ -217,16 +217,35 @@ ADHD-App/
 - ✅ `npm start`でバックエンドが起動する
 - ⏳ クライアントからバックエンドへのAPI通信（Phase 3以降で実装予定）
 
-### ⏳ Phase 2: 音声録音機能の実装 - 未着手
+### ✅ Phase 2: 音声録音機能の実装 - 完了
 
-**次回作業内容**:
-1. expo-avを使用した音声録音機能実装
-2. 録音権限取得
-3. 録音開始/停止機能
-4. 録音ファイルの保存
-5. エラーハンドリング
+**完了日**: 2026年1月11日
 
-**参照**: `DEVELOPMENT_PLAN.md` の Phase 2セクション（70-110行目）
+#### 実施内容
+
+1. **音声録音サービス実装**
+   - `client/services/audioRecorder.ts` 作成
+   - expo-avを使用した録音開始/停止機能
+   - 録音権限取得実装
+   - 録音ファイルURI取得
+   - エラーハンドリング実装
+
+2. **権限設定**
+   - `client/app.json` 更新
+   - iOS: NSMicrophoneUsageDescription 追加
+   - Android: RECORD_AUDIO 権限追加
+
+3. **App.tsx統合**
+   - 録音機能をApp.tsxに統合
+   - デモデータから実際の録音処理に置き換え
+   - 録音状態管理追加
+
+#### 動作確認完了
+
+- ✅ 音声録音権限取得
+- ✅ 録音開始/停止
+- ✅ 録音ファイルURI取得（.m4a形式）
+- ✅ エラーハンドリング
 
 ### ✅ Phase 3: バックエンドAPI実装 - 完了
 
@@ -273,26 +292,61 @@ ADHD-App/
 - 実際のテストには https://platform.openai.com/ で取得したAPIキーが必要
 - `.env` ファイルの `OPENAI_API_KEY` を実際のキーに置き換えること
 
-#### 次のステップ
+### ✅ Phase 4: クライアント統合（API連携） - 完了
 
-実際の音声ファイルでテストする場合：
-```bash
-# テスト音声作成（macOS）
-say -o /tmp/test.aiff "今日の夕方までに企画書を完成させないと"
-ffmpeg -i /tmp/test.aiff -acodec aac /tmp/test.m4a
+**完了日**: 2026年1月11日
 
-# APIテスト
-curl -X POST http://localhost:3000/api/process-voice \
-  -F "audioFile=@/tmp/test.m4a"
+#### 実施内容
+
+1. **API通信サービス実装**
+   - `client/services/apiClient.ts` 作成
+   - 音声ファイルアップロード機能（FormData）
+   - タイムアウト制御（30秒）
+   - エラーハンドリング（ネットワークエラー、タイムアウト等）
+   - ヘルスチェック機能
+
+2. **API URL設定**
+   - `client/constants/config.ts` 更新
+   - 開発環境: MacのローカルIP（172.20.10.2）
+   - iPhoneからアクセス可能な設定
+
+3. **App.tsx更新**
+   - デモデータから実際のAPI呼び出しに置き換え
+   - 過去時刻チェック追加
+   - エラーハンドリング強化（リトライボタン付き）
+
+4. **サーバー側修正**
+   - `server/index.js`: 0.0.0.0でリッスン（iPhone接続可能に）
+   - `server/services/openaiService.js`: 未来時刻提案の強化、過去時刻自動補正
+
+#### 動作確認完了
+
+- ✅ 音声録音 → API送信
+- ✅ OpenAI Whisper（音声→テキスト変換）
+- ✅ OpenAI GPT（AI整理: 要約・分類・リマインド時刻）
+- ✅ 通知スケジュール
+- ✅ エンドツーエンドの一気通貫動作
+
+#### MVPコアフロー完成
+
+**録音 → AI整理 → "預かりました" → 通知1回** の全てが正常に動作！
+
+実際のテスト結果例：
+```
+入力音声: "明日中にオクトパスに取り合わせをする"
+↓
+AI整理結果:
+- transcript: "明日中にオクトパスに取り合わせをする"
+- summary: "オクトパスに問い合わせ"
+- category: "仕事"
+- suggestedTime: "2026-01-12T00:00:00.000Z"
+↓
+通知設定成功
 ```
 
 ### 次回開始時の注意事項
 
-1. **環境変数の確認**
-   - `server/.env` に OpenAI APIキーが設定されているか確認
-   - 未設定の場合は `.env.example` を参考に設定
-
-2. **開発サーバーの起動**
+1. **開発サーバーの起動**
    ```bash
    # ターミナル1: クライアント
    cd client && npx expo start
@@ -301,10 +355,15 @@ curl -X POST http://localhost:3000/api/process-voice \
    cd server && npm run dev
    ```
 
-3. **Phase 2の実装前に確認**
-   - `requirements.md` のPhase 2関連要件を再確認
-   - `DEVELOPMENT_PLAN.md` のPhase 2実装タスクを確認
-   - expo-avの権限設定（`app.json`のinfoPlist設定）
+2. **環境変数の確認**
+   - `server/.env` に OpenAI APIキーが設定されているか確認
+   - API URLは開発環境用（172.20.10.2）に設定済み
+
+3. **次のフェーズ: Phase 7（テスト・バグ修正）**
+   - `DEVELOPMENT_PLAN.md` のPhase 7を参照
+   - 様々な入力パターンでテスト
+   - エッジケースの確認
+   - パフォーマンステスト（3秒以内起動）
 
 4. **重要な設計原則**
    - MVP範囲内で最小限の実装に留める
@@ -330,6 +389,28 @@ kill -9 <PID>
 ---
 
 ## 開発履歴
+
+### 2026年1月11日
+- **Phase 2完了**: 音声録音機能の実装
+  - audioRecorder.tsサービス作成
+  - 録音権限設定（iOS/Android）
+  - App.tsxに録音機能統合
+  - 動作確認完了（録音→ファイルURI取得）
+
+- **Phase 4完了**: API連携（クライアント統合）
+  - apiClient.tsサービス作成
+  - 実際のAPI呼び出しに置き換え
+  - サーバー側修正（0.0.0.0でリッスン）
+  - OpenAI API連携成功（Whisper + GPT-4o）
+  - 通知時刻バグ修正（未来時刻提案の強化）
+
+- **MVPコアフロー完成**
+  - 録音 → AI整理 → "預かりました" → 通知1回 の全てが動作
+  - エンドツーエンドテスト成功
+
+- **Gitコミット**
+  - 1edbf40: Implement Phase 2 (Audio Recording)
+  - 0e94062: Implement Phase 4 (API Integration)
 
 ### 2026年1月6日
 - Phase 1完了: 環境構築、動作確認
