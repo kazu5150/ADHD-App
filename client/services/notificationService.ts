@@ -89,7 +89,10 @@ export async function scheduleNotification(
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
       },
-      trigger: date, // Dateオブジェクトを直接指定
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: Math.floor(triggerTime / 1000),
+      },
     });
 
     console.log(`通知をスケジュールしました: ${notificationId}`, {

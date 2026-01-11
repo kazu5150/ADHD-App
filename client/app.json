@@ -15,7 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSUserNotificationsUsageDescription": "思い出す時間にリマインダーを送るために通知を使用します"
+        "NSUserNotificationsUsageDescription": "思い出す時間にリマインダーを送るために通知を使用します",
+        "NSMicrophoneUsageDescription": "音声メモを録音するために必要です"
       }
     },
     "android": {
@@ -27,7 +28,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "notification": {
