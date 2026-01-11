@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { Alert } from 'react-native';
 import HomeScreen from './screens/HomeScreen';
 import RecordingScreen from './screens/RecordingScreen';
 import ProcessingScreen from './screens/ProcessingScreen';
 import CompleteScreen from './screens/CompleteScreen';
+import * as notificationService from './services/notificationService';
 
 type Screen = 'home' | 'recording' | 'processing' | 'complete';
 
@@ -16,6 +18,11 @@ interface ProcessedData {
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
+
+  // 通知権限を取得
+  useEffect(() => {
+    notificationService.getPermissions();
+  }, []);
 
   // 録音開始
   const handleStartRecording = () => {
@@ -40,11 +47,24 @@ export default function App() {
   };
 
   // リマインダー設定
-  const handleSetReminder = () => {
-    console.log('リマインダー設定:', processedData?.suggestedTime);
-    alert('リマインダーを設定しました');
-    setCurrentScreen('home');
-    setProcessedData(null);
+  const handleSetReminder = async () => {
+    if (!processedData?.suggestedTime) return;
+
+    try {
+      const reminderDate = new Date(processedData.suggestedTime);
+      await notificationService.scheduleNotification(
+        reminderDate,
+        processedData.summary
+      );
+
+      console.log('リマインダー設定:', processedData.suggestedTime);
+      Alert.alert('設定完了', 'リマインダーを設定しました');
+      setCurrentScreen('home');
+      setProcessedData(null);
+    } catch (error) {
+      console.error('リマインダー設定エラー:', error);
+      Alert.alert('エラー', '通知の設定に失敗しました');
+    }
   };
 
   // リマインダースキップ
