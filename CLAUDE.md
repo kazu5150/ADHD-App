@@ -228,6 +228,64 @@ ADHD-App/
 
 **参照**: `DEVELOPMENT_PLAN.md` の Phase 2セクション（70-110行目）
 
+### ✅ Phase 3: バックエンドAPI実装 - 完了
+
+**完了日**: 2026年1月11日
+
+#### 実施内容
+
+1. **ファイルアップロード処理実装**
+   - `server/middleware/upload.js` 作成
+   - multerでメモリストレージ設定
+   - ファイルサイズ制限（10MB）
+   - 音声形式バリデーション（m4a, wav, mp3, mp4）
+   - エラーハンドリング実装
+
+2. **OpenAI API連携実装**
+   - `server/services/openaiService.js` 作成
+   - Whisper API統合（音声→テキスト変換）
+   - GPT-4o統合（要約・分類・リマインド時刻提案）
+   - タイムアウト設定（30秒）
+   - JSON Mode使用でレスポンス安定化
+
+3. **APIエンドポイント実装**
+   - `server/routes/processVoice.js` 作成
+   - POST /api/process-voice エンドポイント
+   - 処理フロー: ファイル受信 → Whisper → GPT → レスポンス
+   - エラーレスポンス（400/503/500）
+
+4. **サーバー更新**
+   - `server/index.js` にルート追加
+   - 起動メッセージに新エンドポイント表示
+
+#### 動作確認完了
+
+- ✅ サーバー起動成功（http://localhost:3000）
+- ✅ ヘルスチェック正常（GET /health）
+- ✅ エラーハンドリング動作確認
+  - ファイル未送信 → 400 NO_FILE
+  - 不正なファイル形式 → 400 INVALID_FILE_TYPE
+
+#### 注意事項
+
+⚠️ **OpenAI APIキーの設定が必要**
+- 現在 `.env` のAPIキーは `sk-proj-placeholder`（プレースホルダー）
+- 実際のテストには https://platform.openai.com/ で取得したAPIキーが必要
+- `.env` ファイルの `OPENAI_API_KEY` を実際のキーに置き換えること
+
+#### 次のステップ
+
+実際の音声ファイルでテストする場合：
+```bash
+# テスト音声作成（macOS）
+say -o /tmp/test.aiff "今日の夕方までに企画書を完成させないと"
+ffmpeg -i /tmp/test.aiff -acodec aac /tmp/test.m4a
+
+# APIテスト
+curl -X POST http://localhost:3000/api/process-voice \
+  -F "audioFile=@/tmp/test.m4a"
+```
+
 ### 次回開始時の注意事項
 
 1. **環境変数の確認**

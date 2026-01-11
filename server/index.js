@@ -21,7 +21,8 @@ app.get('/health', (req, res) => {
 });
 
 // ルート
-// TODO: API routesをここに追加
+const processVoiceRouter = require('./routes/processVoice');
+app.use('/api', processVoiceRouter);
 
 // エラーハンドリング
 app.use((err, req, res, next) => {
@@ -50,4 +51,5 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
+  console.log(`🎤 Process voice: POST http://localhost:${PORT}/api/process-voice`);
 });
