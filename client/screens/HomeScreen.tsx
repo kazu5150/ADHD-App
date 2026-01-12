@@ -9,12 +9,14 @@ interface HomeScreenProps {
   onStartRecording: () => void;
   memos: Memo[];
   onToggleMemoStatus: (id: string) => void;
+  onEditMemo: (id: string) => void;
 }
 
 export default function HomeScreen({
   onStartRecording,
   memos,
-  onToggleMemoStatus
+  onToggleMemoStatus,
+  onEditMemo
 }: HomeScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
@@ -44,6 +46,7 @@ export default function HomeScreen({
                   key={memo.id}
                   memo={memo}
                   onToggleStatus={onToggleMemoStatus}
+                  onEdit={onEditMemo}
                 />
               ))}
             </ScrollView>

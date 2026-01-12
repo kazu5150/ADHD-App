@@ -72,6 +72,28 @@ export async function updateMemoStatus(
 }
 
 /**
+ * メモ全体を更新
+ */
+export async function updateMemo(updatedMemo: Memo): Promise<void> {
+  try {
+    const memos = await getMemos();
+    const updated = memos.map(m =>
+      m.id === updatedMemo.id ? updatedMemo : m
+    );
+
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.MEMOS,
+      JSON.stringify(updated)
+    );
+
+    console.log('✅ メモ更新成功:', updatedMemo.id, '-', updatedMemo.summary);
+  } catch (error) {
+    console.error('❌ メモ更新エラー:', error);
+    throw error;
+  }
+}
+
+/**
  * 全メモを削除（デバッグ用）
  */
 export async function clearAllMemos(): Promise<void> {

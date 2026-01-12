@@ -5,13 +5,14 @@ import HomeScreen from './screens/HomeScreen';
 import RecordingScreen from './screens/RecordingScreen';
 import ProcessingScreen from './screens/ProcessingScreen';
 import CompleteScreen from './screens/CompleteScreen';
+import EditMemoScreen from './screens/EditMemoScreen';
 import * as notificationService from './services/notificationService';
 import * as audioRecorder from './services/audioRecorder';
 import * as apiClient from './services/apiClient';
 import * as storageService from './services/storageService';
 import { Memo } from './types/memo';
 
-type Screen = 'home' | 'recording' | 'processing' | 'complete';
+type Screen = 'home' | 'recording' | 'processing' | 'complete' | 'edit';
 
 interface ProcessedData {
   summary: string;
@@ -25,6 +26,7 @@ export default function App() {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
+  const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
 
   // アプリ起動時の処理
   useEffect(() => {
@@ -156,6 +158,35 @@ export default function App() {
     }
   };
 
+  // メモ編集画面を開く
+  const handleEditMemo = (id: string) => {
+    const memo = memos.find(m => m.id === id);
+    if (memo) {
+      setEditingMemo(memo);
+      setCurrentScreen('edit');
+    }
+  };
+
+  // メモ編集を保存
+  const handleSaveMemo = async (updatedMemo: Memo) => {
+    try {
+      await storageService.updateMemo(updatedMemo);
+      await loadMemos();
+      setCurrentScreen('home');
+      setEditingMemo(null);
+      console.log('✅ メモ編集完了:', updatedMemo.summary);
+    } catch (error) {
+      console.error('❌ メモ編集エラー:', error);
+      Alert.alert('エラー', 'メモの更新に失敗しました');
+    }
+  };
+
+  // メモ編集をキャンセル
+  const handleCancelEdit = () => {
+    setCurrentScreen('home');
+    setEditingMemo(null);
+  };
+
   // リマインダー設定
   const handleSetReminder = async () => {
     if (!processedData?.suggestedTime) return;
@@ -222,6 +253,7 @@ export default function App() {
           onStartRecording={handleStartRecording}
           memos={memos}
           onToggleMemoStatus={handleToggleMemoStatus}
+          onEditMemo={handleEditMemo}
         />
       )}
       {currentScreen === 'recording' && (
@@ -235,6 +267,13 @@ export default function App() {
           suggestedTime={processedData.suggestedTime}
           onSetReminder={handleSetReminder}
           onSkipReminder={handleSkipReminder}
+        />
+      )}
+      {currentScreen === 'edit' && editingMemo && (
+        <EditMemoScreen
+          memo={editingMemo}
+          onSave={handleSaveMemo}
+          onCancel={handleCancelEdit}
         />
       )}
     </>

@@ -6,19 +6,25 @@ import { colors } from '../constants/colors';
 interface MemoHistoryCardProps {
   memo: Memo;
   onToggleStatus: (id: string) => void;
+  onEdit: (id: string) => void;
 }
 
 export default function MemoHistoryCard({
   memo,
-  onToggleStatus
+  onToggleStatus,
+  onEdit
 }: MemoHistoryCardProps) {
   const isDone = memo.status === 'done';
 
   return (
-    <View style={[
-      styles.card,
-      isDone && styles.cardDone
-    ]}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => onEdit(memo.id)}
+    >
+      <View style={[
+        styles.card,
+        isDone && styles.cardDone
+      ]}>
       {/* 要約（1行） */}
       <Text
         style={[
@@ -52,6 +58,7 @@ export default function MemoHistoryCard({
         </Text>
       </TouchableOpacity>
     </View>
+    </TouchableOpacity>
   );
 }
 
