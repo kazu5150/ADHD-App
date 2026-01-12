@@ -1,0 +1,85 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Memo, MemoStatus } from '../types/memo';
+import { STORAGE_KEYS, MAX_MEMOS } from '../constants/config';
+
+/**
+ * 全メモを取得（最新順）
+ */
+export async function getMemos(): Promise<Memo[]> {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEYS.MEMOS);
+    if (!json) return [];
+
+    const memos: Memo[] = JSON.parse(json);
+    // 最新順にソート（createdAt降順）
+    return memos.sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  } catch (error) {
+    console.error('メモ読み込みエラー:', error);
+    return [];
+  }
+}
+
+/**
+ * 新しいメモを保存（3件制限、古いものを削除）
+ */
+export async function saveMemo(memo: Memo): Promise<void> {
+  try {
+    const memos = await getMemos();
+
+    // 新しいメモを先頭に追加
+    memos.unshift(memo);
+
+    // 3件を超えた分は削除
+    const limitedMemos = memos.slice(0, MAX_MEMOS);
+
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.MEMOS,
+      JSON.stringify(limitedMemos)
+    );
+
+    console.log('✅ メモ保存成功:', memo.id, '-', memo.summary);
+  } catch (error) {
+    console.error('❌ メモ保存エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * メモのステータスを更新
+ */
+export async function updateMemoStatus(
+  id: string,
+  status: MemoStatus
+): Promise<void> {
+  try {
+    const memos = await getMemos();
+    const updated = memos.map(m =>
+      m.id === id ? { ...m, status } : m
+    );
+
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.MEMOS,
+      JSON.stringify(updated)
+    );
+
+    console.log('✅ ステータス更新成功:', id, '->', status);
+  } catch (error) {
+    console.error('❌ ステータス更新エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * 全メモを削除（デバッグ用）
+ */
+export async function clearAllMemos(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.MEMOS);
+    console.log('✅ 全メモ削除成功');
+  } catch (error) {
+    console.error('❌ メモ削除エラー:', error);
+    throw error;
+  }
+}

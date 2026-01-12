@@ -60,6 +60,20 @@ export async function cancelAllNotifications(): Promise<void> {
 }
 
 /**
+ * 特定の通知IDの通知をキャンセル
+ * @param {string} notificationId - 通知ID
+ */
+export async function cancelNotificationById(notificationId: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    console.log('✅ 通知をキャンセルしました:', notificationId);
+  } catch (error) {
+    console.error('❌ 通知キャンセルエラー:', error);
+    throw error;
+  }
+}
+
+/**
  * 指定時刻に通知をスケジュール
  * @param {Date} date - 通知を送る日時
  * @param {string} message - 通知メッセージ

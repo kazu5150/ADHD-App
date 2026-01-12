@@ -4,6 +4,11 @@
 export type MemoCategory = '仕事' | '生活' | 'アイデア' | '不安・気がかり';
 
 /**
+ * メモのステータス
+ */
+export type MemoStatus = 'open' | 'done';
+
+/**
  * メモデータの型定義
  */
 export interface Memo {
@@ -27,4 +32,7 @@ export interface Memo {
 
   /** 通知ID (通知をキャンセルする際に使用) */
   notificationId?: string;
+
+  /** メモのステータス (open: 未完了, done: 完了) */
+  status: MemoStatus;
 }

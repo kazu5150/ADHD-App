@@ -8,6 +8,8 @@ import CompleteScreen from './screens/CompleteScreen';
 import * as notificationService from './services/notificationService';
 import * as audioRecorder from './services/audioRecorder';
 import * as apiClient from './services/apiClient';
+import * as storageService from './services/storageService';
+import { Memo } from './types/memo';
 
 type Screen = 'home' | 'recording' | 'processing' | 'complete';
 
@@ -15,18 +17,32 @@ interface ProcessedData {
   summary: string;
   category: string;
   suggestedTime: string;
+  transcript: string;
 }
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
+  const [memos, setMemos] = useState<Memo[]>([]);
 
-  // 通知権限と録音権限を取得
+  // アプリ起動時の処理
   useEffect(() => {
     notificationService.getPermissions();
     audioRecorder.getPermissions();
+    loadMemos();
   }, []);
+
+  // メモを読み込む
+  const loadMemos = async () => {
+    try {
+      const loadedMemos = await storageService.getMemos();
+      setMemos(loadedMemos);
+      console.log('✅ メモ読み込み成功:', loadedMemos.length, '件');
+    } catch (error) {
+      console.error('❌ メモ読み込みエラー:', error);
+    }
+  };
 
   // 録音開始
   const handleStartRecording = async () => {
@@ -59,6 +75,7 @@ export default function App() {
           summary: response.data.summary,
           category: response.data.category,
           suggestedTime: response.data.suggestedTime,
+          transcript: response.data.transcript,
         });
         setCurrentScreen('complete');
       } else {
@@ -83,6 +100,62 @@ export default function App() {
     }
   };
 
+  // 新しいメモを保存
+  const saveNewMemo = async (notificationId: string | null) => {
+    if (!processedData) return;
+
+    try {
+      const newMemo: Memo = {
+        id: Date.now().toString(),
+        transcript: processedData.transcript,
+        summary: processedData.summary,
+        category: processedData.category as any,
+        suggestedTime: processedData.suggestedTime,
+        createdAt: new Date().toISOString(),
+        notificationId: notificationId || undefined,
+        status: 'open',
+      };
+
+      await storageService.saveMemo(newMemo);
+      await loadMemos();
+    } catch (error) {
+      console.error('❌ メモ保存エラー:', error);
+    }
+  };
+
+  // メモのステータスを変更
+  const handleToggleMemoStatus = async (id: string) => {
+    try {
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+
+      const newStatus = memo.status === 'open' ? 'done' : 'open';
+
+      // ステータスを更新
+      await storageService.updateMemoStatus(id, newStatus);
+
+      // 通知を制御
+      if (newStatus === 'done' && memo.notificationId) {
+        // 完了 → 通知をキャンセル
+        await notificationService.cancelNotificationById(memo.notificationId);
+      } else if (newStatus === 'open' && memo.notificationId) {
+        // 未完了に戻す → 通知を再スケジュール（未来の時刻のみ）
+        const reminderDate = new Date(memo.suggestedTime);
+        if (reminderDate > new Date()) {
+          await notificationService.scheduleNotification(
+            reminderDate,
+            memo.summary
+          );
+        }
+      }
+
+      await loadMemos();
+    } catch (error) {
+      console.error('❌ ステータス変更エラー:', error);
+      Alert.alert('エラー', 'ステータスの変更に失敗しました');
+    }
+  };
+
   // リマインダー設定
   const handleSetReminder = async () => {
     if (!processedData?.suggestedTime) return;
@@ -93,6 +166,10 @@ export default function App() {
       // 過去の時刻チェック
       if (reminderDate <= new Date()) {
         console.warn('提案された時刻が過去のため、リマインダーをスキップします');
+
+        // メモは保存（通知なし）
+        await saveNewMemo(null);
+
         Alert.alert(
           '通知設定',
           '提案された時刻が既に過ぎているため、通知は設定されませんでした。',
@@ -105,10 +182,13 @@ export default function App() {
         return;
       }
 
-      await notificationService.scheduleNotification(
+      const notificationId = await notificationService.scheduleNotification(
         reminderDate,
         processedData.summary
       );
+
+      // メモを保存
+      await saveNewMemo(notificationId);
 
       console.log('リマインダー設定:', processedData.suggestedTime);
       Alert.alert('設定完了', 'リマインダーを設定しました');
@@ -123,8 +203,12 @@ export default function App() {
   };
 
   // リマインダースキップ
-  const handleSkipReminder = () => {
+  const handleSkipReminder = async () => {
     console.log('リマインダースキップ');
+
+    // メモは保存（通知なし）
+    await saveNewMemo(null);
+
     setCurrentScreen('home');
     setProcessedData(null);
     setRecordingUri(null);
@@ -134,7 +218,11 @@ export default function App() {
     <>
       <StatusBar style="auto" />
       {currentScreen === 'home' && (
-        <HomeScreen onStartRecording={handleStartRecording} />
+        <HomeScreen
+          onStartRecording={handleStartRecording}
+          memos={memos}
+          onToggleMemoStatus={handleToggleMemoStatus}
+        />
       )}
       {currentScreen === 'recording' && (
         <RecordingScreen onStopRecording={handleStopRecording} />
