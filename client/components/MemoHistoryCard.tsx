@@ -16,6 +16,30 @@ export default function MemoHistoryCard({
 }: MemoHistoryCardProps) {
   const isDone = memo.status === 'done';
 
+  // 時刻を読みやすい形式にフォーマット
+  const formatTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+
+    if (targetDay.getTime() === today.getTime()) {
+      return `今日 ${timeStr}`;
+    } else if (targetDay.getTime() === tomorrow.getTime()) {
+      return `明日 ${timeStr}`;
+    } else {
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      return `${month}/${day} ${timeStr}`;
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -25,16 +49,26 @@ export default function MemoHistoryCard({
         styles.card,
         isDone && styles.cardDone
       ]}>
-      {/* 要約（1行） */}
-      <Text
-        style={[
-          styles.summary,
-          isDone && styles.summaryDone
-        ]}
-        numberOfLines={1}
-      >
-        {memo.summary}
-      </Text>
+      {/* 左側: 要約と時刻 */}
+      <View style={styles.textContainer}>
+        <Text
+          style={[
+            styles.summary,
+            isDone && styles.summaryDone
+          ]}
+          numberOfLines={1}
+        >
+          {memo.summary}
+        </Text>
+        <Text
+          style={[
+            styles.timeText,
+            isDone && styles.timeTextDone
+          ]}
+        >
+          {formatTime(memo.suggestedTime)}
+        </Text>
+      </View>
 
       {/* カテゴリバッジ */}
       <View style={styles.categoryBadge}>
@@ -78,15 +112,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     opacity: 0.6,
   },
-  summary: {
+  textContainer: {
     flex: 1,
+    marginRight: 8,
+  },
+  summary: {
     fontSize: 14,
     color: colors.text,
-    marginRight: 8,
+    marginBottom: 4,
   },
   summaryDone: {
     color: colors.textLight,
     textDecorationLine: 'line-through',
+  },
+  timeText: {
+    fontSize: 11,
+    color: colors.textLight,
+  },
+  timeTextDone: {
+    color: colors.textLight,
+    opacity: 0.6,
   },
   categoryBadge: {
     paddingHorizontal: 8,
