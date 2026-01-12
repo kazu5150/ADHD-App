@@ -53,5 +53,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📝 Health check: http://localhost:${PORT}/health`);
   console.log(`🎤 Process voice: POST http://localhost:${PORT}/api/process-voice`);
-  console.log(`📱 iPhone access: http://172.20.10.2:${PORT}`);
+  console.log(`📱 iPhone access (Wi-Fi): http://192.168.0.18:${PORT}`);
+  console.log(`📱 iPhone access (Tethering): http://172.20.10.2:${PORT}`);
 });
