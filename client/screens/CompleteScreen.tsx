@@ -1,23 +1,26 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import MessageCard from '../components/MessageCard';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { colors } from '../constants/colors';
 
 interface CompleteScreenProps {
-  summary: string;
-  category: string;
+  organizedContent: string;  // Markdown形式
+  hasReminder: boolean;
   suggestedTime?: string;
-  onSetReminder: () => void;
-  onSkipReminder: () => void;
+  onComplete: () => void;    // 自動遷移用
 }
 
 export default function CompleteScreen({
-  summary,
-  category,
+  organizedContent,
+  hasReminder,
   suggestedTime,
-  onSetReminder,
-  onSkipReminder,
+  onComplete,
 }: CompleteScreenProps) {
+  // 2秒後に自動遷移
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 2000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
   // 時刻を読みやすい形式に変換
   const formatTime = (isoString?: string) => {
     if (!isoString) return '';
@@ -36,24 +39,17 @@ export default function CompleteScreen({
           <Text style={styles.subtitle}>もう考えなくて大丈夫です</Text>
         </View>
 
-        <View style={styles.cardContainer}>
-          <MessageCard title={summary} category={category} />
-        </View>
+        {/* Markdown表示（スクロール可能） */}
+        <ScrollView style={styles.markdownContainer} contentContainerStyle={styles.markdownContent}>
+          <Text style={styles.markdown}>{organizedContent}</Text>
+        </ScrollView>
 
-        {suggestedTime && (
-          <View style={styles.reminderContainer}>
-            <Text style={styles.reminderQuestion}>思い出しますか？</Text>
-            <Text style={styles.reminderTime}>{formatTime(suggestedTime)}</Text>
-
-            <View style={styles.buttonGroup}>
-              <TouchableOpacity style={styles.buttonYes} onPress={onSetReminder}>
-                <Text style={styles.buttonYesText}>はい</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.buttonNo} onPress={onSkipReminder}>
-                <Text style={styles.buttonNoText}>いいえ</Text>
-              </TouchableOpacity>
-            </View>
+        {/* リマインド表示（📌ありの場合のみ） */}
+        {hasReminder && suggestedTime && (
+          <View style={styles.reminderHint}>
+            <Text style={styles.reminderText}>
+              {formatTime(suggestedTime)}にリマインドします
+            </Text>
           </View>
         )}
       </View>
@@ -73,7 +69,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingTop: 40,
-    marginBottom: 40,
+    marginBottom: 32,
   },
   checkmark: {
     fontSize: 48,
@@ -90,48 +86,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textLight,
   },
-  cardContainer: {
-    marginBottom: 40,
+  markdownContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
-  reminderContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
+  markdownContent: {
+    paddingBottom: 20,
   },
-  reminderQuestion: {
+  markdown: {
     fontSize: 16,
+    lineHeight: 24,
     color: colors.text,
-    marginBottom: 8,
   },
-  reminderTime: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 24,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  buttonYes: {
-    paddingHorizontal: 48,
-    paddingVertical: 16,
+  reminderHint: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginHorizontal: 24,
     backgroundColor: colors.accent,
     borderRadius: 12,
   },
-  buttonYesText: {
-    fontSize: 16,
-    fontWeight: '600',
+  reminderText: {
+    fontSize: 14,
     color: colors.text,
-  },
-  buttonNo: {
-    paddingHorizontal: 48,
-    paddingVertical: 16,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-  },
-  buttonNoText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textLight,
   },
 });

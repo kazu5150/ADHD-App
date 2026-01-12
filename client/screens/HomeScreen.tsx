@@ -9,20 +9,20 @@ interface HomeScreenProps {
   onStartRecording: () => void;
   memos: Memo[];
   onToggleMemoStatus: (id: string) => void;
-  onEditMemo: (id: string) => void;
 }
 
 export default function HomeScreen({
   onStartRecording,
   memos,
-  onToggleMemoStatus,
-  onEditMemo
+  onToggleMemoStatus
 }: HomeScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.subtitle}>今日はもう大丈夫</Text>
+          <Text style={styles.subtitle}>
+            まとまってなくていいので、{'\n'}今の頭の中を話してください
+          </Text>
         </View>
 
         <View style={styles.recordButtonContainer}>
@@ -46,7 +46,6 @@ export default function HomeScreen({
                   key={memo.id}
                   memo={memo}
                   onToggleStatus={onToggleMemoStatus}
-                  onEdit={onEditMemo}
                 />
               ))}
             </ScrollView>

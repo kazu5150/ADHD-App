@@ -10,9 +10,31 @@ export async function getMemos(): Promise<Memo[]> {
     const json = await AsyncStorage.getItem(STORAGE_KEYS.MEMOS);
     if (!json) return [];
 
-    const memos: Memo[] = JSON.parse(json);
+    const memos: any[] = JSON.parse(json);
+
+    // 互換性レイヤー: 旧形式を新形式に変換
+    const normalizedMemos: Memo[] = memos.map(memo => {
+      if (!memo.organizedContent && memo.summary && memo.category) {
+        // 旧形式 → 新形式に変換
+        return {
+          ...memo,
+          transcript: memo.transcript || memo.summary || '',
+          organizedContent: `これは仮の整理です。\n\n${memo.category}:\n・${memo.summary}`,
+          hasReminder: !!memo.notificationId,
+        };
+      }
+      // 新形式でもtranscriptが欠けている場合の対応
+      if (!memo.transcript) {
+        return {
+          ...memo,
+          transcript: memo.organizedContent ? memo.organizedContent.substring(0, 50) : '',
+        } as Memo;
+      }
+      return memo as Memo;
+    });
+
     // 最新順にソート（createdAt降順）
-    return memos.sort((a, b) =>
+    return normalizedMemos.sort((a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   } catch (error) {
@@ -39,7 +61,7 @@ export async function saveMemo(memo: Memo): Promise<void> {
       JSON.stringify(limitedMemos)
     );
 
-    console.log('✅ メモ保存成功:', memo.id, '-', memo.summary);
+    console.log('✅ メモ保存成功:', memo.id);
   } catch (error) {
     console.error('❌ メモ保存エラー:', error);
     throw error;
@@ -86,7 +108,7 @@ export async function updateMemo(updatedMemo: Memo): Promise<void> {
       JSON.stringify(updated)
     );
 
-    console.log('✅ メモ更新成功:', updatedMemo.id, '-', updatedMemo.summary);
+    console.log('✅ メモ更新成功:', updatedMemo.id);
   } catch (error) {
     console.error('❌ メモ更新エラー:', error);
     throw error;

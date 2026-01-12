@@ -5,19 +5,18 @@ import HomeScreen from './screens/HomeScreen';
 import RecordingScreen from './screens/RecordingScreen';
 import ProcessingScreen from './screens/ProcessingScreen';
 import CompleteScreen from './screens/CompleteScreen';
-import EditMemoScreen from './screens/EditMemoScreen';
 import * as notificationService from './services/notificationService';
 import * as audioRecorder from './services/audioRecorder';
 import * as apiClient from './services/apiClient';
 import * as storageService from './services/storageService';
 import { Memo } from './types/memo';
 
-type Screen = 'home' | 'recording' | 'processing' | 'complete' | 'edit';
+type Screen = 'home' | 'recording' | 'processing' | 'complete';
 
 interface ProcessedData {
-  summary: string;
-  category: string;
-  suggestedTime: string;
+  organizedContent: string;
+  hasReminder: boolean;
+  suggestedTime?: string;
   transcript: string;
 }
 
@@ -26,7 +25,6 @@ export default function App() {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
-  const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
 
   // アプリ起動時の処理
   useEffect(() => {
@@ -74,8 +72,8 @@ export default function App() {
       if (response.success && response.data) {
         console.log('✅ AI整理完了:', response.data);
         setProcessedData({
-          summary: response.data.summary,
-          category: response.data.category,
+          organizedContent: response.data.organizedContent,
+          hasReminder: response.data.hasReminder,
           suggestedTime: response.data.suggestedTime,
           transcript: response.data.transcript,
         });
@@ -110,8 +108,8 @@ export default function App() {
       const newMemo: Memo = {
         id: Date.now().toString(),
         transcript: processedData.transcript,
-        summary: processedData.summary,
-        category: processedData.category as any,
+        organizedContent: processedData.organizedContent,
+        hasReminder: processedData.hasReminder,
         suggestedTime: processedData.suggestedTime,
         createdAt: new Date().toISOString(),
         notificationId: notificationId || undefined,
@@ -140,13 +138,13 @@ export default function App() {
       if (newStatus === 'done' && memo.notificationId) {
         // 完了 → 通知をキャンセル
         await notificationService.cancelNotificationById(memo.notificationId);
-      } else if (newStatus === 'open' && memo.notificationId) {
+      } else if (newStatus === 'open' && memo.notificationId && memo.suggestedTime) {
         // 未完了に戻す → 通知を再スケジュール（未来の時刻のみ）
         const reminderDate = new Date(memo.suggestedTime);
         if (reminderDate > new Date()) {
           await notificationService.scheduleNotification(
             reminderDate,
-            memo.summary
+            'やること候補があります'
           );
         }
       }
@@ -158,91 +156,39 @@ export default function App() {
     }
   };
 
-  // メモ編集画面を開く
-  const handleEditMemo = (id: string) => {
-    const memo = memos.find(m => m.id === id);
-    if (memo) {
-      setEditingMemo(memo);
-      setCurrentScreen('edit');
-    }
-  };
 
-  // メモ編集を保存
-  const handleSaveMemo = async (updatedMemo: Memo) => {
-    try {
-      await storageService.updateMemo(updatedMemo);
-      await loadMemos();
-      setCurrentScreen('home');
-      setEditingMemo(null);
-      console.log('✅ メモ編集完了:', updatedMemo.summary);
-    } catch (error) {
-      console.error('❌ メモ編集エラー:', error);
-      Alert.alert('エラー', 'メモの更新に失敗しました');
-    }
-  };
-
-  // メモ編集をキャンセル
-  const handleCancelEdit = () => {
-    setCurrentScreen('home');
-    setEditingMemo(null);
-  };
-
-  // リマインダー設定
-  const handleSetReminder = async () => {
-    if (!processedData?.suggestedTime) return;
+  // 完了処理（自動遷移後の処理）
+  const handleCompleteFinish = async () => {
+    if (!processedData) return;
 
     try {
-      const reminderDate = new Date(processedData.suggestedTime);
+      let notificationId: string | null = null;
 
-      // 過去の時刻チェック
-      if (reminderDate <= new Date()) {
-        console.warn('提案された時刻が過去のため、リマインダーをスキップします');
+      // 📌ありの場合のみリマインド設定
+      if (processedData.hasReminder && processedData.suggestedTime) {
+        const reminderDate = new Date(processedData.suggestedTime);
 
-        // メモは保存（通知なし）
-        await saveNewMemo(null);
-
-        Alert.alert(
-          '通知設定',
-          '提案された時刻が既に過ぎているため、通知は設定されませんでした。',
-          [{ text: 'OK', onPress: () => {
-            setCurrentScreen('home');
-            setProcessedData(null);
-            setRecordingUri(null);
-          }}]
-        );
-        return;
+        // 未来時刻チェック
+        if (reminderDate > new Date()) {
+          notificationId = await notificationService.scheduleNotification(
+            reminderDate,
+            'やること候補があります'
+          );
+          console.log('✅ リマインダー設定:', processedData.suggestedTime);
+        }
       }
-
-      const notificationId = await notificationService.scheduleNotification(
-        reminderDate,
-        processedData.summary
-      );
 
       // メモを保存
       await saveNewMemo(notificationId);
 
-      console.log('リマインダー設定:', processedData.suggestedTime);
-      Alert.alert('設定完了', 'リマインダーを設定しました');
+      // ホームへ戻る
       setCurrentScreen('home');
       setProcessedData(null);
       setRecordingUri(null);
-    } catch (error: any) {
-      console.error('リマインダー設定エラー:', error);
-      const errorMessage = error.message || '通知の設定に失敗しました';
-      Alert.alert('エラー', errorMessage);
+    } catch (error) {
+      console.error('❌ 完了処理エラー:', error);
+      Alert.alert('エラー', '保存に失敗しました');
     }
-  };
-
-  // リマインダースキップ
-  const handleSkipReminder = async () => {
-    console.log('リマインダースキップ');
-
-    // メモは保存（通知なし）
-    await saveNewMemo(null);
-
-    setCurrentScreen('home');
-    setProcessedData(null);
-    setRecordingUri(null);
   };
 
   return (
@@ -253,7 +199,6 @@ export default function App() {
           onStartRecording={handleStartRecording}
           memos={memos}
           onToggleMemoStatus={handleToggleMemoStatus}
-          onEditMemo={handleEditMemo}
         />
       )}
       {currentScreen === 'recording' && (
@@ -262,18 +207,10 @@ export default function App() {
       {currentScreen === 'processing' && <ProcessingScreen />}
       {currentScreen === 'complete' && processedData && (
         <CompleteScreen
-          summary={processedData.summary}
-          category={processedData.category}
+          organizedContent={processedData.organizedContent}
+          hasReminder={processedData.hasReminder}
           suggestedTime={processedData.suggestedTime}
-          onSetReminder={handleSetReminder}
-          onSkipReminder={handleSkipReminder}
-        />
-      )}
-      {currentScreen === 'edit' && editingMemo && (
-        <EditMemoScreen
-          memo={editingMemo}
-          onSave={handleSaveMemo}
-          onCancel={handleCancelEdit}
+          onComplete={handleCompleteFinish}
         />
       )}
     </>

@@ -23,8 +23,8 @@ router.post('/process-voice', uploadMiddleware, async (req, res) => {
       success: true,
       data: {
         transcript: result.transcript,
-        summary: result.summary,
-        category: result.category,
+        organizedContent: result.organizedContent,
+        hasReminder: result.hasReminder,
         suggestedTime: result.suggestedTime,
       },
     });

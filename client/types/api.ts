@@ -24,12 +24,12 @@ export interface ProcessVoiceResponse {
   /** 音声認識結果 */
   transcript: string;
 
-  /** AIによる1行要約 */
-  summary: string;
+  /** AIによる整理結果（Markdown形式） */
+  organizedContent: string;
 
-  /** AIによる分類 */
-  category: MemoCategory;
+  /** 📌やること候補があるか */
+  hasReminder: boolean;
 
-  /** AIが提案するリマインド時刻 (ISO 8601形式) */
-  suggestedTime: string;
+  /** AIが提案するリマインド時刻 (ISO 8601形式) - 📌がある場合のみ */
+  suggestedTime?: string;
 }

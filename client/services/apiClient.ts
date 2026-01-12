@@ -64,8 +64,8 @@ export async function processVoice(audioUri: string): Promise<ApiResponse<Proces
         success: true,
         data: {
           transcript: data.data.transcript,
-          summary: data.data.summary,
-          category: data.data.category,
+          organizedContent: data.data.organizedContent,
+          hasReminder: data.data.hasReminder,
           suggestedTime: data.data.suggestedTime,
         },
       };

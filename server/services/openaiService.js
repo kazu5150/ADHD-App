@@ -33,88 +33,90 @@ async function transcribeAudio(audioBuffer, filename = 'audio.m4a') {
 }
 
 /**
+ * リマインド時刻を計算
+ * @returns {string} - ISO 8601形式の時刻
+ */
+function calculateReminderTime() {
+  const now = new Date();
+  const hour = now.getHours();
+  let suggestedTime = new Date(now);
+
+  if (hour < 12) {
+    // 朝 → 夕方17時
+    suggestedTime.setHours(17, 0, 0, 0);
+  } else if (hour < 18) {
+    // 昼 → 夜20時
+    suggestedTime.setHours(20, 0, 0, 0);
+  } else {
+    // 夜 → 翌朝9時
+    suggestedTime.setDate(suggestedTime.getDate() + 1);
+    suggestedTime.setHours(9, 0, 0, 0);
+  }
+
+  return suggestedTime.toISOString();
+}
+
+/**
  * テキストをAIで整理（GPT API）
  * @param {string} transcript - 文字起こしテキスト
- * @returns {Promise<Object>} - { summary, category, suggestedTime }
+ * @returns {Promise<Object>} - { organizedContent, hasReminder, suggestedTime? }
  */
 async function organizeThought(transcript) {
   try {
-    const currentTime = new Date();
-
-    // 1時間後の時刻を計算
-    const oneHourLater = new Date(currentTime.getTime() + 60 * 60 * 1000);
-
     // システムプロンプト
-    const systemPrompt = `あなたはユーザーの思考を整理するアシスタントです。
-音声メモから以下の情報を抽出してください：
+    const systemPrompt = `あなたは思考整理のアシスタントです。入力は音声の文字起こしで、支離滅裂でも構いません。
 
-1. summary: 1行で要約（20文字以内が理想）
-2. category: 以下の4つから1つ選択
-   - "仕事" : 業務、タスク、締切に関すること
-   - "生活" : 買い物、家事、予定に関すること
-   - "アイデア" : 思いつき、企画、メモしたいこと
-   - "不安・気がかり" : 心配事、漠然とした不安
+次のルールを厳守してください：
+- 正解を出そうとしない
+- 必ず「これは仮の整理です。」から始める
+- 4分類（🧠😟📌🗑）で整理し、順序を固定する
+- タスク（📌）は最大3つまで
+- タスクは必ず「5分以内で終わる具体行動」にする
+- 感情や不安はタスク化しない
+- 重い作業や曖昧な作業はタスク化しない（例：『人生を変える』『完璧に準備する』など）
+- 3つを超えそうなら、最も小さくて今すぐできる上位3つに絞り、残りは🧠へ戻す
 
-3. suggestedTime: リマインド候補時刻（ISO 8601形式、日本時間 +09:00）
-   - 現在時刻: ${currentTime.toISOString()}
-   - **重要: 必ず現在時刻より未来の時刻を提案してください**
-   - 最低でも1時間後（${oneHourLater.toISOString()}）以降の時刻を提案
-   - 例:
-     * 朝（6-11時）のメモ → 同日の夕方17-19時
-     * 昼（12-17時）のメモ → 同日の夜20-22時
-     * 夜（18時以降）のメモ → 翌朝9-10時
+出力は必ず以下のMarkdownフォーマットのみ。余計な説明は禁止。
 
-ユーザー入力が意味不明・空の場合:
-- summary: "メモを受け取りました"
-- category: "不安・気がかり"
-- suggestedTime: 翌朝9時を提案
+これは仮の整理です。
 
-JSON形式で出力してください。`;
+🧠 考え事：
+・[項目がある場合のみ記載]
+
+😟 感情・不安：
+・[項目がある場合のみ記載]
+
+📌 やること候補（最大3つ）：
+・[項目がある場合のみ記載]
+
+🗑 今は捨ててOK：
+・[項目がある場合のみ記載]
+`;
 
     const userPrompt = `以下の音声メモを整理してください：\n\n${transcript}`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o', // GPT-4o（高速・高精度）
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      response_format: { type: 'json_object' }, // JSON Mode
-      temperature: 0.3, // 低温度で安定した出力
+      temperature: 0.1, // 低温度で安定化
     });
 
-    const result = JSON.parse(completion.choices[0].message.content);
+    const organizedContent = completion.choices[0].message.content;
 
-    // バリデーション
-    const validCategories = ['仕事', '生活', 'アイデア', '不安・気がかり'];
-    if (!validCategories.includes(result.category)) {
-      result.category = '不安・気がかり'; // デフォルト
-    }
+    // 📌セクションの抽出
+    const taskSection = organizedContent.match(/📌 やること候補.*?\n([\s\S]*?)(?=\n(?:🧠|😟|🗑)|$)/);
+    const hasReminder = taskSection && taskSection[1].trim().length > 0;
 
-    // suggestedTimeのバリデーション（ISO 8601形式チェック）
-    if (!result.suggestedTime || !result.suggestedTime.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-      // 無効な場合は翌朝9時をデフォルト
-      const tomorrow = new Date(currentTime);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(9, 0, 0, 0);
-      result.suggestedTime = tomorrow.toISOString();
+    // リマインド時刻計算（📌ありの場合のみ）
+    if (hasReminder) {
+      const suggestedTime = calculateReminderTime();
+      return { organizedContent, hasReminder, suggestedTime };
     } else {
-      // 過去の時刻チェック
-      const suggestedDate = new Date(result.suggestedTime);
-      if (suggestedDate <= currentTime) {
-        console.warn('AIが過去の時刻を提案したため、翌朝9時に補正します');
-        const tomorrow = new Date(currentTime);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(9, 0, 0, 0);
-        result.suggestedTime = tomorrow.toISOString();
-      }
+      return { organizedContent, hasReminder: false };
     }
-
-    return {
-      summary: result.summary || 'メモを受け取りました',
-      category: result.category,
-      suggestedTime: result.suggestedTime,
-    };
   } catch (error) {
     console.error('GPT API error:', error);
     throw new Error('AIによる整理に失敗しました');
@@ -125,7 +127,7 @@ JSON形式で出力してください。`;
  * 音声ファイルを受け取り、整理済みデータを返す（メイン関数）
  * @param {Buffer} audioBuffer - 音声ファイルのバッファ
  * @param {string} filename - ファイル名
- * @returns {Promise<Object>} - { transcript, summary, category, suggestedTime }
+ * @returns {Promise<Object>} - { transcript, organizedContent, hasReminder, suggestedTime? }
  */
 async function processVoice(audioBuffer, filename) {
   // 1. 音声→テキスト
@@ -136,7 +138,9 @@ async function processVoice(audioBuffer, filename) {
 
   return {
     transcript,
-    ...organized,
+    organizedContent: organized.organizedContent,
+    hasReminder: organized.hasReminder,
+    suggestedTime: organized.suggestedTime, // 📌の場合のみ存在
   };
 }
 

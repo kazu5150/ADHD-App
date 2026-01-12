@@ -6,18 +6,46 @@ import { colors } from '../constants/colors';
 interface MemoHistoryCardProps {
   memo: Memo;
   onToggleStatus: (id: string) => void;
-  onEdit: (id: string) => void;
 }
 
 export default function MemoHistoryCard({
   memo,
-  onToggleStatus,
-  onEdit
+  onToggleStatus
 }: MemoHistoryCardProps) {
   const isDone = memo.status === 'done';
 
+  // organizedContentから最初の有効な行を取得
+  const getSummaryLine = (): string => {
+    // organizedContentが存在しない場合はtranscriptから取得
+    if (!memo.organizedContent) {
+      if (memo.transcript) {
+        return memo.transcript.substring(0, 30) + '...';
+      }
+      return 'メモがありません';
+    }
+
+    const lines = memo.organizedContent.split('\n').filter(line => line.trim());
+    // "これは仮の整理です。" 以降の最初の有効な行を取得
+    const startIndex = lines.findIndex(line => line.includes('これは仮の整理です'));
+    const validLines = lines.slice(startIndex + 1).filter(line =>
+      line.trim() && !line.startsWith('🧠') && !line.startsWith('😟') &&
+      !line.startsWith('📌') && !line.startsWith('🗑')
+    );
+
+    if (validLines.length > 0) {
+      return validLines[0].replace(/^・/, '').trim();
+    }
+
+    if (memo.transcript) {
+      return memo.transcript.substring(0, 30) + '...';
+    }
+    return 'メモがありません';
+  };
+
   // 時刻を読みやすい形式にフォーマット
-  const formatTime = (dateString: string): string => {
+  const formatTime = (dateString?: string): string => {
+    if (!dateString) return '時刻未設定';
+
     const date = new Date(dateString);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -41,14 +69,10 @@ export default function MemoHistoryCard({
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => onEdit(memo.id)}
-    >
-      <View style={[
-        styles.card,
-        isDone && styles.cardDone
-      ]}>
+    <View style={[
+      styles.card,
+      isDone && styles.cardDone
+    ]}>
       {/* 左側: 要約と時刻 */}
       <View style={styles.textContainer}>
         <Text
@@ -56,23 +80,20 @@ export default function MemoHistoryCard({
             styles.summary,
             isDone && styles.summaryDone
           ]}
-          numberOfLines={1}
+          numberOfLines={2}
         >
-          {memo.summary}
+          {getSummaryLine()}
         </Text>
-        <Text
-          style={[
-            styles.timeText,
-            isDone && styles.timeTextDone
-          ]}
-        >
-          {formatTime(memo.suggestedTime)}
-        </Text>
-      </View>
-
-      {/* カテゴリバッジ */}
-      <View style={styles.categoryBadge}>
-        <Text style={styles.categoryText}>{memo.category}</Text>
+        {memo.hasReminder && memo.suggestedTime && (
+          <Text
+            style={[
+              styles.timeText,
+              isDone && styles.timeTextDone
+            ]}
+          >
+            {formatTime(memo.suggestedTime)}
+          </Text>
+        )}
       </View>
 
       {/* 完了ボタン */}
@@ -92,7 +113,6 @@ export default function MemoHistoryCard({
         </Text>
       </TouchableOpacity>
     </View>
-    </TouchableOpacity>
   );
 }
 

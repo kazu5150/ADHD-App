@@ -1,7 +1,11 @@
 /**
- * メモの分類カテゴリー
+ * メモの分類カテゴリー（新4分類）
  */
-export type MemoCategory = '仕事' | '生活' | 'アイデア' | '不安・気がかり';
+export type MemoCategory =
+  | '🧠 考え事'
+  | '😟 感情・不安'
+  | '📌 やること候補'
+  | '🗑 今は捨ててOK';
 
 /**
  * メモのステータス
@@ -12,20 +16,20 @@ export type MemoStatus = 'open' | 'done';
  * メモデータの型定義
  */
 export interface Memo {
-  /** 一意なID (UUID) */
+  /** 一意なID */
   id: string;
 
   /** 音声認識結果のテキスト */
   transcript: string;
 
-  /** AIによる1行要約 */
-  summary: string;
+  /** AIによるMarkdown形式の整理結果 */
+  organizedContent: string;
 
-  /** AIによる分類 */
-  category: MemoCategory;
+  /** リマインド設定有無（📌判定） */
+  hasReminder: boolean;
 
-  /** AIが提案するリマインド時刻 (ISO 8601形式) */
-  suggestedTime: string;
+  /** AIが提案するリマインド時刻（📌の場合のみ存在、ISO 8601形式） */
+  suggestedTime?: string;
 
   /** メモ作成日時 (ISO 8601形式) */
   createdAt: string;
