@@ -4,14 +4,16 @@ import { Alert } from 'react-native';
 import HomeScreen from './screens/HomeScreen';
 import RecordingScreen from './screens/RecordingScreen';
 import ProcessingScreen from './screens/ProcessingScreen';
-import CompleteScreen from './screens/CompleteScreen';
+import CompleteScreen, { EditedData } from './screens/CompleteScreen';
+import MemoListScreen from './screens/MemoListScreen';
+import MemoEditScreen from './screens/MemoEditScreen';
 import * as notificationService from './services/notificationService';
 import * as audioRecorder from './services/audioRecorder';
 import * as apiClient from './services/apiClient';
 import * as storageService from './services/storageService';
 import { Memo } from './types/memo';
 
-type Screen = 'home' | 'recording' | 'processing' | 'complete';
+type Screen = 'home' | 'recording' | 'processing' | 'complete' | 'memoList' | 'memoEdit';
 
 interface ProcessedData {
   organizedContent: string;
@@ -25,6 +27,7 @@ export default function App() {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
+  const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
 
   // アプリ起動時の処理
   useEffect(() => {
@@ -100,29 +103,6 @@ export default function App() {
     }
   };
 
-  // 新しいメモを保存
-  const saveNewMemo = async (notificationId: string | null) => {
-    if (!processedData) return;
-
-    try {
-      const newMemo: Memo = {
-        id: Date.now().toString(),
-        transcript: processedData.transcript,
-        organizedContent: processedData.organizedContent,
-        hasReminder: processedData.hasReminder,
-        suggestedTime: processedData.suggestedTime,
-        createdAt: new Date().toISOString(),
-        notificationId: notificationId || undefined,
-        status: 'open',
-      };
-
-      await storageService.saveMemo(newMemo);
-      await loadMemos();
-    } catch (error) {
-      console.error('❌ メモ保存エラー:', error);
-    }
-  };
-
   // メモのステータスを変更
   const handleToggleMemoStatus = async (id: string) => {
     try {
@@ -156,17 +136,101 @@ export default function App() {
     }
   };
 
+  // 一覧画面を開く
+  const handleOpenMemoList = () => {
+    setCurrentScreen('memoList');
+  };
 
-  // 完了処理（自動遷移後の処理）
-  const handleCompleteFinish = async () => {
+  // 一覧画面から戻る
+  const handleBackFromMemoList = () => {
+    setCurrentScreen('home');
+  };
+
+  // メモ編集画面を開く
+  const handleEditMemo = (memo: Memo) => {
+    setEditingMemo(memo);
+    setCurrentScreen('memoEdit');
+  };
+
+  // 編集画面から戻る
+  const handleBackFromMemoEdit = () => {
+    setEditingMemo(null);
+    setCurrentScreen('memoList');
+  };
+
+  // メモを保存（編集）
+  const handleSaveMemo = async (updatedMemo: Memo) => {
+    try {
+      // 既存の通知をキャンセル
+      if (editingMemo?.notificationId) {
+        await notificationService.cancelNotificationById(editingMemo.notificationId);
+      }
+
+      // 新しい通知をスケジュール（時刻が変更された場合）
+      let newNotificationId = updatedMemo.notificationId;
+      if (updatedMemo.hasReminder && updatedMemo.suggestedTime) {
+        const reminderDate = new Date(updatedMemo.suggestedTime);
+        if (reminderDate > new Date()) {
+          newNotificationId = await notificationService.scheduleNotification(
+            reminderDate,
+            'やること候補があります'
+          );
+        }
+      }
+
+      // 更新されたメモを保存
+      const memoToSave: Memo = {
+        ...updatedMemo,
+        notificationId: newNotificationId,
+      };
+      await storageService.updateMemo(memoToSave);
+      await loadMemos();
+
+      // 一覧画面に戻る
+      setEditingMemo(null);
+      setCurrentScreen('memoList');
+    } catch (error) {
+      console.error('❌ メモ保存エラー:', error);
+      Alert.alert('エラー', '保存に失敗しました');
+    }
+  };
+
+  // メモを削除
+  const handleDeleteMemo = async (id: string) => {
+    try {
+      const memo = memos.find(m => m.id === id);
+
+      // 通知をキャンセル
+      if (memo?.notificationId) {
+        await notificationService.cancelNotificationById(memo.notificationId);
+      }
+
+      // メモを削除
+      await storageService.deleteMemo(id);
+      await loadMemos();
+
+      // 一覧画面に戻る
+      setEditingMemo(null);
+      setCurrentScreen('memoList');
+    } catch (error) {
+      console.error('❌ メモ削除エラー:', error);
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+  };
+
+  // 完了処理（ユーザーがOKボタンを押した時）
+  const handleCompleteFinish = async (editedData: EditedData) => {
     if (!processedData) return;
 
     try {
       let notificationId: string | null = null;
 
+      // 編集されたリマインド時刻を使用
+      const finalSuggestedTime = editedData.suggestedTime || processedData.suggestedTime;
+
       // 📌ありの場合のみリマインド設定
-      if (processedData.hasReminder && processedData.suggestedTime) {
-        const reminderDate = new Date(processedData.suggestedTime);
+      if (processedData.hasReminder && finalSuggestedTime) {
+        const reminderDate = new Date(finalSuggestedTime);
 
         // 未来時刻チェック
         if (reminderDate > new Date()) {
@@ -174,12 +238,24 @@ export default function App() {
             reminderDate,
             'やること候補があります'
           );
-          console.log('✅ リマインダー設定:', processedData.suggestedTime);
+          console.log('✅ リマインダー設定:', finalSuggestedTime);
         }
       }
 
-      // メモを保存
-      await saveNewMemo(notificationId);
+      // 編集されたデータでメモを保存
+      const newMemo: Memo = {
+        id: Date.now().toString(),
+        transcript: editedData.transcript,
+        organizedContent: processedData.organizedContent,
+        hasReminder: processedData.hasReminder,
+        suggestedTime: finalSuggestedTime,
+        createdAt: new Date().toISOString(),
+        notificationId: notificationId || undefined,
+        status: 'open',
+      };
+
+      await storageService.saveMemo(newMemo);
+      await loadMemos();
 
       // ホームへ戻る
       setCurrentScreen('home');
@@ -198,7 +274,7 @@ export default function App() {
         <HomeScreen
           onStartRecording={handleStartRecording}
           memos={memos}
-          onToggleMemoStatus={handleToggleMemoStatus}
+          onOpenMemoList={handleOpenMemoList}
         />
       )}
       {currentScreen === 'recording' && (
@@ -210,7 +286,24 @@ export default function App() {
           organizedContent={processedData.organizedContent}
           hasReminder={processedData.hasReminder}
           suggestedTime={processedData.suggestedTime}
+          transcript={processedData.transcript}
           onComplete={handleCompleteFinish}
+        />
+      )}
+      {currentScreen === 'memoList' && (
+        <MemoListScreen
+          memos={memos}
+          onToggleMemoStatus={handleToggleMemoStatus}
+          onEditMemo={handleEditMemo}
+          onBack={handleBackFromMemoList}
+        />
+      )}
+      {currentScreen === 'memoEdit' && editingMemo && (
+        <MemoEditScreen
+          memo={editingMemo}
+          onSave={handleSaveMemo}
+          onDelete={handleDeleteMemo}
+          onBack={handleBackFromMemoEdit}
         />
       )}
     </>

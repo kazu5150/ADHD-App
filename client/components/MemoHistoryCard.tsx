@@ -6,11 +6,13 @@ import { colors } from '../constants/colors';
 interface MemoHistoryCardProps {
   memo: Memo;
   onToggleStatus: (id: string) => void;
+  onPress?: (memo: Memo) => void;
 }
 
 export default function MemoHistoryCard({
   memo,
-  onToggleStatus
+  onToggleStatus,
+  onPress,
 }: MemoHistoryCardProps) {
   const isDone = memo.status === 'done';
 
@@ -73,8 +75,12 @@ export default function MemoHistoryCard({
       styles.card,
       isDone && styles.cardDone
     ]}>
-      {/* 左側: 要約と時刻 */}
-      <View style={styles.textContainer}>
+      {/* 左側: 要約と時刻（タップで編集画面へ） */}
+      <TouchableOpacity
+        style={styles.textContainer}
+        onPress={() => onPress?.(memo)}
+        activeOpacity={0.7}
+      >
         <Text
           style={[
             styles.summary,
@@ -94,7 +100,7 @@ export default function MemoHistoryCard({
             {formatTime(memo.suggestedTime)}
           </Text>
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* 完了ボタン */}
       <TouchableOpacity

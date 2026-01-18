@@ -116,6 +116,26 @@ export async function updateMemo(updatedMemo: Memo): Promise<void> {
 }
 
 /**
+ * メモを削除
+ */
+export async function deleteMemo(id: string): Promise<void> {
+  try {
+    const memos = await getMemos();
+    const filtered = memos.filter(m => m.id !== id);
+
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.MEMOS,
+      JSON.stringify(filtered)
+    );
+
+    console.log('✅ メモ削除成功:', id);
+  } catch (error) {
+    console.error('❌ メモ削除エラー:', error);
+    throw error;
+  }
+}
+
+/**
  * 全メモを削除（デバッグ用）
  */
 export async function clearAllMemos(): Promise<void> {

@@ -9,43 +9,55 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Memo } from '../types/memo';
 import { colors } from '../constants/colors';
 
-interface CompleteScreenProps {
-  organizedContent: string;
-  hasReminder: boolean;
-  suggestedTime?: string;
-  transcript: string;
-  onComplete: (editedData: EditedData) => void;
+interface MemoEditScreenProps {
+  memo: Memo;
+  onSave: (updatedMemo: Memo) => void;
+  onDelete: (id: string) => void;
+  onBack: () => void;
 }
 
-export interface EditedData {
-  transcript: string;
-  suggestedTime?: string;
-}
-
-export default function CompleteScreen({
-  organizedContent,
-  hasReminder,
-  suggestedTime,
-  transcript,
-  onComplete,
-}: CompleteScreenProps) {
-  // 編集用のstate
-  const [editedTranscript, setEditedTranscript] = useState(transcript);
+export default function MemoEditScreen({
+  memo,
+  onSave,
+  onDelete,
+  onBack,
+}: MemoEditScreenProps) {
+  const [editedTranscript, setEditedTranscript] = useState(memo.transcript);
   const [editedTime, setEditedTime] = useState<Date | null>(
-    suggestedTime ? new Date(suggestedTime) : null
+    memo.suggestedTime ? new Date(memo.suggestedTime) : null
   );
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // 完了ボタン押下
-  const handleComplete = () => {
-    onComplete({
+  // 保存ボタン押下
+  const handleSave = () => {
+    const updatedMemo: Memo = {
+      ...memo,
       transcript: editedTranscript,
       suggestedTime: editedTime?.toISOString(),
-    });
+    };
+    onSave(updatedMemo);
+  };
+
+  // 削除確認
+  const handleDelete = () => {
+    Alert.alert(
+      '削除の確認',
+      'このメモを削除しますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: () => onDelete(memo.id),
+        },
+      ]
+    );
   };
 
   // 時刻を読みやすい形式に変換
@@ -73,7 +85,7 @@ export default function CompleteScreen({
   };
 
   // DateTimePickerの変更ハンドラ
-  const handleTimeChange = (event: any, selectedDate?: Date) => {
+  const handleTimeChange = (_event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowTimePicker(false);
     }
@@ -88,41 +100,45 @@ export default function CompleteScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+        {/* ヘッダー */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>← 戻る</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>編集</Text>
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <Text style={styles.deleteText}>削除</Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ヘッダー */}
-          <View style={styles.header}>
-            <Text style={styles.checkmark}>✓</Text>
-            <Text style={styles.title}>預かりました</Text>
-            <Text style={styles.subtitle}>内容を確認・編集できます</Text>
-          </View>
-
           {/* AI整理結果（読み取り専用） */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>AIの整理結果</Text>
             <View style={styles.markdownContainer}>
-              <Text style={styles.markdown}>{organizedContent}</Text>
+              <Text style={styles.markdown}>{memo.organizedContent}</Text>
             </View>
           </View>
 
           {/* 録音内容（編集可能） */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>録音内容</Text>
+            <Text style={styles.sectionLabel}>内容</Text>
             <TextInput
               style={styles.textInput}
               value={editedTranscript}
               onChangeText={setEditedTranscript}
               multiline
-              placeholder="録音内容を編集..."
+              placeholder="内容を編集..."
               placeholderTextColor={colors.textLight}
             />
           </View>
 
           {/* リマインド時間（編集可能） */}
-          {hasReminder && (
+          {memo.hasReminder && (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>リマインド時刻</Text>
               <TouchableOpacity
@@ -147,7 +163,6 @@ export default function CompleteScreen({
                 />
               )}
 
-              {/* iOSの場合は「決定」ボタンを表示 */}
               {Platform.OS === 'ios' && showTimePicker && (
                 <TouchableOpacity
                   style={styles.pickerDoneButton}
@@ -158,16 +173,26 @@ export default function CompleteScreen({
               )}
             </View>
           )}
+
+          {/* ステータス表示 */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>ステータス</Text>
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusText}>
+                {memo.status === 'done' ? '✓ 完了' : '○ 未完了'}
+              </Text>
+            </View>
+          </View>
         </ScrollView>
 
-        {/* 完了ボタン */}
+        {/* 保存ボタン */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.completeButton}
-            onPress={handleComplete}
+            style={styles.saveButton}
+            onPress={handleSave}
             activeOpacity={0.8}
           >
-            <Text style={styles.completeButtonText}>OK</Text>
+            <Text style={styles.saveButtonText}>保存</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -183,32 +208,42 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    paddingVertical: 8,
+    paddingRight: 16,
+  },
+  backText: {
+    fontSize: 16,
+    color: colors.textLight,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  deleteButton: {
+    paddingVertical: 8,
+    paddingLeft: 16,
+  },
+  deleteText: {
+    fontSize: 16,
+    color: '#FF6B6B',
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingVertical: 20,
     paddingHorizontal: 20,
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: 20,
-    marginBottom: 24,
-  },
-  checkmark: {
-    fontSize: 40,
-    color: colors.text,
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textLight,
   },
   section: {
     marginBottom: 20,
@@ -240,7 +275,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
-    minHeight: 80,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
   timeButton: {
@@ -269,17 +304,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.record,
   },
+  statusContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusText: {
+    fontSize: 14,
+    color: colors.text,
+  },
   footer: {
     padding: 20,
     paddingBottom: 32,
   },
-  completeButton: {
+  saveButton: {
     backgroundColor: colors.record,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  completeButtonText: {
+  saveButtonText: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.background,

@@ -18,8 +18,8 @@ export const STORAGE_KEYS = {
   MEMOS: 'memos',
 } as const;
 
-// メモ保存数の上限（MVP: 直近3件のみ）
-export const MAX_MEMOS = 3;
+// メモ保存数の上限
+export const MAX_MEMOS = 30;
 
 // API タイムアウト（ミリ秒）
 export const API_TIMEOUT = 30000; // 30秒
